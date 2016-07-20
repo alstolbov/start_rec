@@ -1,0 +1,146 @@
+
+<!doctype html>
+<html>
+  <head>
+  <title>START REC. Enterprise</title>
+   <script src="/libs/shaka-player.compiled.debug.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js"></script>
+  <style>
+    video {
+      width: 640px;
+      height: 360px;
+    }
+    .btn {
+      display: inline-block;
+      line-height: 28px;
+      padding: 0 4px;
+      border: 1px dashed #444;
+      cursor: pointer;
+    }
+    .btn:hover {
+      border: 1px solid #333;
+    }
+    .right {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 300px;
+      overflow: auto;
+      overflow-x: hidden;
+    }
+    #recList ._link span{
+      display: inline-block;
+      width: 200px;
+      margin: 5px 0;
+      overflow: hidden;
+      border-bottom: 1px dashed #444;
+      white-space: nowrap;
+      vertical-align: middle;
+      cursor: pointer;
+    }
+    #recList ._link span:hover {
+      border-bottom: 1px dashed #fff;
+    }
+  </style>
+  <script>
+    function startVideo(mpd) {
+      shaka.polyfill.installAll();
+      var video = document.getElementById('video');
+      var player = new shaka.player.Player(video);
+      var source = new shaka.player.DashVideoSource(mpd, null, null);
+      player.load(source);
+    }
+  </script>
+  </head>
+
+    <body>
+      <div class="left">
+        <a href="http://iptv-player.com/tv" target="_blank">http://iptv-player.com/tv</a><br />
+        <video id="video" controls autoplay></video>
+      </div>
+      <div class="right">
+        <br />
+        <input type="text" id="videoSrc" placeholder="stream URL"/><br />
+        <br />
+        <div class="btn" id="startStream">Start stream record</div>
+        <div class="btn" id="stopStream">Stop stream record</div>
+        <div class="btn" id="clearData">Clear List</div>
+        <!-- <div class="btn" onClick="startVideo('content/manifest/manifest.mpd');">
+          show 1
+        </div>
+        <div class="btn" onClick="startVideo('content/manifest2/manifest2.mpd');">
+          show 2
+        </div> -->
+        <br /><br /><hr /><br /><br />
+        <div id="recList"></div>
+      </div>
+
+      <script>
+        var uuid = function () {
+            return Math.random().toString(36).substring(7);
+        };
+        var setData = function (data) {
+          localStorage.setItem('streamList', JSON.stringify(data || []));
+        }
+        var getData = function () {
+            if (!localStorage.streamList) setData();
+            return JSON.parse(localStorage.getItem('streamList'));
+        }
+        var writeData = function (data) {
+          var tmp = getData();
+          tmp.push(data);
+          setData(tmp);
+          return getData();
+        }
+
+        var buildList = function () {
+          var recList = document.getElementById('recList');
+          recList.innerHTML = "";
+          var data = getData();
+          data.forEach(function (item) {
+            var node = document.createElement('div');
+            node.className = "_link";
+            node.innerHTML = "<span>stream " + item.stream + "</span> [rec]";
+            node.onclick = function () {
+              startVideo('content/' + item.folder + '/' + item.folder + '.mpd');
+            };
+            recList.appendChild(node);
+          });
+        }
+
+        buildList();
+
+        $('#clearData').click(function () {
+          setData();
+          buildList();
+        });
+        $('#startStream').click(function (){
+          var val = $('#videoSrc').val();
+          var folder = uuid();
+          $.post("/addStream",
+            {
+              stream: val,
+              manifest: folder
+            },
+            function(html) {
+              console.log(html);
+              writeData({stream: val, folder: folder});
+              buildList();
+            },
+            "html"
+          );
+        });
+
+        $('#stopStream').click(function (){
+          $.post("/stopRec",
+            {},
+            function(html) {
+              console.log(html);
+            },
+            "html"
+          );
+        });
+      </script>
+    </body>
+</html>
